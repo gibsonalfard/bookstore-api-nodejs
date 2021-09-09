@@ -2,13 +2,9 @@ const books = require("./books")
 const {nanoid} = require('nanoid')
 
 const addBookHandler = (request, h) => {
-    const { name, year, author, summary, publisher, pageCount, readPage,
-    reading} = request.payload
+    const { name, year, author, summary, publisher, pageCount} = request.payload
 
     const bookId = nanoid(16)
-    const finished = pageCount === readPage
-    const insertedAt = new Date().toISOString()
-    const updatedAt = insertedAt
 
     // Check if Request Body Incomplete. Name is undefined
     let error = false
@@ -16,9 +12,6 @@ const addBookHandler = (request, h) => {
 
     if(name === undefined){
         errorMessage = "Gagal menambahkan buku. Mohon isi nama buku"
-        error = true
-    }else if(readPage > pageCount){
-        errorMessage = "Gagal menambahkan buku. readPage tidak boleh lebih besar dari pageCount"
         error = true
     }
 
@@ -34,8 +27,7 @@ const addBookHandler = (request, h) => {
     }
 
     const book = {
-        id: bookId, name, year, author, summary, publisher, pageCount, readPage, finished, reading,
-        insertedAt, updatedAt
+        id: bookId, name, year, author, summary, publisher, pageCount
     }
 
     books.push(book);
