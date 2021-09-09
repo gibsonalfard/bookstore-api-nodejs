@@ -1,7 +1,8 @@
 const books = require("./books")
+const mysql = require("../config/mysql")
 const {nanoid} = require('nanoid')
 
-const addBookHandler = (request, h) => {
+const addBookHandler = async (request, h) => {
     const { name, year, author, summary, publisher, pageCount} = request.payload
 
     const bookId = nanoid(16)
@@ -15,6 +16,7 @@ const addBookHandler = (request, h) => {
         error = true
     }
 
+    // Create Error Message if something happen
     if(error){
         const response = h.response({
             "status": "fail",
@@ -26,13 +28,15 @@ const addBookHandler = (request, h) => {
         return response
     }
 
-    const book = {
-        id: bookId, name, year, author, summary, publisher, pageCount
-    }
+    // Create Query for Data Addition to Database
+    let params = []
+    const query = `INSERT into books (id, title, year, author, summary, publisher, pageCount)
+                    VALUES (?)`
+    params.push([bookId, name, year, author, summary, publisher, pageCount])
 
-    books.push(book);
-
-    if(books.filter((b) => b.id === bookId).length > 0){
+    // Insert to database
+    try{
+        await mysql.addData(query, params)
         const response = h.response({
             "status": "success",
             "message": "Buku berhasil ditambahkan",
@@ -44,19 +48,19 @@ const addBookHandler = (request, h) => {
         response.code(201)
 
         return response
+    }catch (e){
+        const response = h.response({
+            "status": "error",
+            "message": "Buku gagal ditambahkan"
+        })
+
+        response.code(500)
+
+        return response
     }
-
-    const response = h.response({
-        "status": "error",
-        "message": "Buku gagal ditambahkan"
-    })
-
-    response.code(500)
-
-    return response
 }
 
-const getAllBooksHandler = (request, h) => {
+const getAllBooksHandler = async (request, h) => {
     const { name, reading, finished } = request.query
     let filteredBook = [...books]
 
@@ -72,7 +76,10 @@ const getAllBooksHandler = (request, h) => {
         filteredBook = filteredBook.filter((b) => b.finished == finished)
     }
 
-    const mappedBook = filteredBook.map(({id, name, publisher}) => ({id, name, publisher}))
+    // Get Data From Database
+    // const mappedBook = filteredBook.map(({id, name, publisher}) => ({id, name, publisher}))
+    let query = "SELECT id, title, publisher FROM books"
+    let mappedBook = await mysql.doQuery(query)
 
     const response = h.response({
         "status": "success",
@@ -84,9 +91,12 @@ const getAllBooksHandler = (request, h) => {
     return response
 }
 
-const getBooksByIdHandler = (request, h) => {
+const getBooksByIdHandler = async (request, h) => {
     const { id } = request.params
-    const book = books.filter((n) => n.id === id)[0]
+
+    // Get the book from DB
+    let query = `SELECT * FROM books WHERE id = '${id}'`
+    let book = await mysql.doQuery(query)
 
     if(book !== undefined){
         return {
@@ -97,6 +107,7 @@ const getBooksByIdHandler = (request, h) => {
         }
     }
 
+    // Cannot find the book
     const response = h.response({
         "status": "fail",
         "message": "Buku tidak ditemukan"
@@ -106,20 +117,18 @@ const getBooksByIdHandler = (request, h) => {
     return response
 }
 
-const editBookByIdHandler = (request, h) => {
+const editBookByIdHandler = async (request, h) => {
     const { id } = request.params
-    const { name, year, author, summary, publisher, pageCount, readPage, reading } = request.payload
+    const { name, year, author, summary, publisher, pageCount} = request.payload
 
     const updatedAt = new Date().toISOString()
     let error = false
     let errorMessage = ""
 
+    // Check if title of Book doesn't exist
     if(name === undefined){
         error = true
         errorMessage = "Gagal memperbarui buku. Mohon isi nama buku"
-    }else if(readPage > pageCount){
-        error = true
-        errorMessage = "Gagal memperbarui buku. readPage tidak boleh lebih besar dari pageCount"
     }
 
     if(error){
@@ -134,16 +143,11 @@ const editBookByIdHandler = (request, h) => {
     }
 
     try{
-        const book = books.filter((n) => n.id === id)[0]
-        book.name = name
-        book.year = year
-        book.author = author
-        book.summary = summary
-        book.publisher = publisher
-        book.pageCount = pageCount
-        book.readPage = readPage
-        book.reading = reading
-        book.updatedAt = updatedAt
+        // Update book record
+        let query = `UPDATE books SET title='${name}', year=${year}, author='${author}',
+                    summary='${summary}', publisher='${publisher}', pageCount=${pageCount}
+                    WHERE id='${id}'`
+        await mysql.doQuery(query)
 
         const response = h.response({
             "status": "success",
@@ -163,19 +167,21 @@ const editBookByIdHandler = (request, h) => {
     }
 }
 
-const deleteBookByIdHandler = (request, h) => {
+const deleteBookByIdHandler = async (request, h) => {
     const { id } = request.params
     let response = undefined
-    const index = books.findIndex((book) => book.id === id)
+    // const index = books.findIndex((book) => book.id === id)
 
-    if(index >= 0){
-        books.splice(index, 1)
+    try{
+        // Delete a book by id
+        await mysql.doQuery(`DELETE FROM books WHERE id = '${id}'`)
         response = h.response({
             "status": "success",
             "message": "Buku berhasil dihapus"
         })
         response.code(200)
-    }else{
+    }catch{
+        // Error Response if book doesn't exist
         response = h.response({
             "status": "fail",
             "message": "Buku gagal dihapus. Id tidak ditemukan"

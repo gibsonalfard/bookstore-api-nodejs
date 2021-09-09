@@ -9,10 +9,11 @@ class Mysql{
             connectTimeout: this.defaultTimeout,
             acquireTimeout: this.defaultTimeout,
             timeout: this.defaultTimeout,
-            host: "localhost",
-            user: "root",
-            password: 'master-saya',
-            database: 'mainDB'
+            host: process.env.MYSQL_HOST,
+            port: process.env.MYSQL_PORT,
+            user: process.env.MYSQL_USER,
+            password: process.env.MYSQL_USER_PASSWORD,
+            database: process.env.MYSQL_DB
         })
 
         this.promiseQuery = util.promisify(this.pool.query).bind(this.pool)
