@@ -6,7 +6,7 @@
   "scripts": {
     "start-dev": "nodemon server.js",
     "lint": "eslint ./",
-    "start": "node server.js"
+    "start": "NODE_ENV="production" node server.js"
   },
   "author": "Ilham Gibran Achmad Mudzakir",
   "license": "ISC",
